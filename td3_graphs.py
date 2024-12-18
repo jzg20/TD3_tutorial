@@ -1,4 +1,3 @@
-#%%
 import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
@@ -153,6 +152,9 @@ class VideoSavingCallback(BaseCallback):
             return data
         smoothed = np.convolve(data, np.ones(window_size)/window_size, mode="valid")
         return smoothed
+    
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
 def run_experiment(num_runs=5):
     all_cumulative_rewards = []
@@ -187,7 +189,8 @@ def run_experiment(num_runs=5):
 # Run the experiment for 10 runs
 num_runs = 10
 all_cumulative_rewards, all_actions_all_runs, all_episode_rewards = run_experiment(num_runs)
-#%%
+
+
 # Plot all learning curves
 plt.figure(figsize=(10, 8))
 for run in range(num_runs):
