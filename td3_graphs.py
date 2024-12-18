@@ -1,3 +1,4 @@
+#%%
 import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
@@ -152,13 +153,11 @@ class VideoSavingCallback(BaseCallback):
             return data
         smoothed = np.convolve(data, np.ones(window_size)/window_size, mode="valid")
         return smoothed
-    
-def moving_average(data, window_size):
-    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
 def run_experiment(num_runs=5):
     all_cumulative_rewards = []
     all_actions_all_runs = []
+    all_episode_rewards = []
     
     for run in range(num_runs):
         print(f"Running experiment {run + 1}/{num_runs}")
@@ -175,19 +174,20 @@ def run_experiment(num_runs=5):
         # Create a new callback for each run
         video_callback = VideoSavingCallback(run_save_path)
 
-        model.learn(total_timesteps=100001, callback=video_callback)
+        model.learn(total_timesteps=40000, callback=video_callback)
 
         all_cumulative_rewards.append(video_callback.cumulative_rewards)
         all_actions_all_runs.append(video_callback.all_actions)
+        all_episode_rewards.append(video_callback.episode_rewards)
                 
         model.save(os.path.join(run_save_path, f"td3_inverted_pendulum_run_{run + 1}"))
 
-    return np.array(all_cumulative_rewards), np.array(all_actions_all_runs)
+    return np.array(all_cumulative_rewards), np.array(all_actions_all_runs), all_episode_rewards
 
 # Run the experiment for 10 runs
 num_runs = 10
-all_cumulative_rewards, all_actions_all_runs = run_experiment(num_runs)
-
+all_cumulative_rewards, all_actions_all_runs, all_episode_rewards = run_experiment(num_runs)
+#%%
 # Plot all learning curves
 plt.figure(figsize=(10, 8))
 for run in range(num_runs):
@@ -197,6 +197,39 @@ plt.ylabel("Cumulative Reward")
 plt.title("Learning Curve: Reward vs Time Steps for Multiple Runs")
 plt.legend()
 plt.savefig(os.path.join(save_path, "learning_curve_smoothed.png"))
+plt.close()
+
+# Plot all learning curves using all episode rewards
+plt.figure(figsize=(10, 8))
+for run in range(num_runs):
+    temp_rewards = all_episode_rewards[run]
+    max_episodes = max([len(rewards) for rewards in all_episode_rewards])
+    plt.plot(temp_rewards, label=f"Run {run + 1}", alpha=0.6)
+    # if there is an outlier run, plot can be capped to 1000 episodes
+    # plt.xlim(0, 1000)
+plt.xlabel("Episode")
+plt.ylabel("Cumulative Reward")
+plt.title("Learning Curve: Reward vs Episode for Multiple Runs")
+plt.legend()
+plt.savefig(os.path.join(save_path, "learning_curve_episode_rewards.png"))
+plt.close()
+
+# Plot the average learning curve using all episode rewards
+plt.figure(figsize=(10, 8))
+max_episodes = max([len(rewards) for rewards in all_episode_rewards])
+# pad all rewards to equal length. If an episode has less than max_episodes, pad with the last reward value
+all_rewards_padded = np.array([rewards + [rewards[-1]] * (max_episodes - len(rewards)) for rewards in all_episode_rewards])
+avg_rewards = np.nanmean(all_rewards_padded, axis=0)
+std_rewards = np.nanstd(all_rewards_padded, axis=0)
+plt.plot(avg_rewards, label="Average Reward", color="black", linewidth=2)
+plt.fill_between(range(len(avg_rewards)), np.maximum(avg_rewards - std_rewards, 0), np.minimum(avg_rewards + std_rewards, 1000), color="gray", alpha=0.3)
+plt.ylim(0, 1020)
+plt.xlim(0)
+plt.xlabel("Episode")
+plt.ylabel("Average Cumulative Reward")
+plt.title("Learning Curve: Average Reward vs Episode for Multiple Runs")
+plt.legend()
+plt.savefig(os.path.join(save_path, "average_learning_curve_episode_rewards.png"))
 plt.close()
 
 # Plot the average learning curve
@@ -209,13 +242,5 @@ plt.xlabel("Time Steps")
 plt.ylabel("Average Cumulative Reward")
 plt.title("Learning Curve: Average Reward vs Time Steps for Multiple Runs")
 plt.legend()
-plt.savefig(os.path.join(save_path, "average_learning_curve.png"))
-plt.close()
-
-plt.figure(figsize=(8, 6))
-plt.hist(np.mean(all_actions_all_runs), bins=50, alpha=0.6, color='g', edgecolor='black')
-plt.xlabel("Action Value")
-plt.ylabel("Frequency")
-plt.title("Action Distribution")
-plt.savefig(os.path.join(save_path, f"action_distribution.png"))
+plt.savefig(os.path.join(save_path, "average_learning_curve_per_timestep.png"))
 plt.close()
