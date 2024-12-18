@@ -156,7 +156,7 @@ class VideoSavingCallback(BaseCallback):
 def moving_average(data, window_size):
     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
-def run_experiment(num_runs=5):
+def run_experiment(num_runs=10):
     all_cumulative_rewards = []
     all_actions_all_runs = []
     all_episode_rewards = []
